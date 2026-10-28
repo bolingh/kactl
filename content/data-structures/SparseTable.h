@@ -1,6 +1,6 @@
 /*
-Description: 1-based, [l, r], range max
-Time: build O(n\log n); qry O(1)
+ * Description: 1-based, [l, r], range max
+ * Time: build O(n\log n); qry O(1)
 */
 const int maxn = 2e5 + 1;
 int st[maxn][31];
