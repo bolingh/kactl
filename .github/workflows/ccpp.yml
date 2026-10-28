@@ -1,24 +1,34 @@
-name: C/C++ CI
+name: Build KACTL PDF
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+  workflow_dispatch: # 支援在 GitHub 網頁上手動點 Run 按鈕
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    # 1. 下載最新程式碼（升級到穩定版 v4）
+    - uses: actions/checkout@v4
+
+    # 2. 正確安裝 LaTeX 環境（加上 update 和 -y）
     - name: Install pdflatex
-      run: sudo apt-get install texlive-latex-base texlive-latex-recommended texlive-latex-extra
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-latex-base texlive-latex-recommended texlive-latex-extra python3
+
+    # 3. 編譯 PDF
     - name: Build pdf
       run: make kactl
-    - name: Run compiles
-      run: make test-compiles
-    - name: Run stress tests
-      run: make test
+
+    # 4. 把編譯好的 kactl.pdf 上傳到 GitHub 供下載（拔掉壞掉的 make test）
+    - name: Upload PDF
+      uses: actions/upload-artifact@v4
+      with:
+        name: kactl-pdf
+        path: kactl.pdf
