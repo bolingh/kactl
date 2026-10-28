@@ -1,66 +1,39 @@
-/**
- * Author: Simon Lindholm
- * Date: 2016-10-08
- * License: CC0
- * Source: me
- * Description: Segment tree with ability to add or set values of large intervals, and compute max of intervals.
- * Can be changed to other things.
- * Use with a bump allocator for better performance, and SmallPtr or implicit indices to save memory.
- * Time: O(\log N).
- * Usage: Node* tr = new Node(v, 0, sz(v));
- * Status: stress-tested a bit
- */
-#pragma once
+/*
+ * Description: 1-based, [l, r] range sum
+ * Time: O(\log n)
+*/
+const int maxn = 2e5 + 1;
+int arr[maxn], seg[maxn << 2], tag[maxn << 2];
+#define m ((l + r) >> 1)
 
-#include "../various/BumpAllocator.h"
+void pull(int &i) {seg[i] = seg[i << 1] + seg[i << 1 | 1];}
 
-const int inf = 1e9;
-struct Node {
-	Node *l = 0, *r = 0;
-	int lo, hi, mset = inf, madd = 0, val = -inf;
-	Node(int lo,int hi):lo(lo),hi(hi){} // Large interval of -inf
-	Node(vi& v, int lo, int hi) : lo(lo), hi(hi) {
-		if (lo + 1 < hi) {
-			int mid = lo + (hi - lo)/2;
-			l = new Node(v, lo, mid); r = new Node(v, mid, hi);
-			val = max(l->val, r->val);
-		}
-		else val = v[lo];
-	}
-	int query(int L, int R) {
-		if (R <= lo || hi <= L) return -inf;
-		if (L <= lo && hi <= R) return val;
-		push();
-		return max(l->query(L, R), r->query(L, R));
-	}
-	void set(int L, int R, int x) {
-		if (R <= lo || hi <= L) return;
-		if (L <= lo && hi <= R) mset = val = x, madd = 0;
-		else {
-			push(), l->set(L, R, x), r->set(L, R, x);
-			val = max(l->val, r->val);
-		}
-	}
-	void add(int L, int R, int x) {
-		if (R <= lo || hi <= L) return;
-		if (L <= lo && hi <= R) {
-			if (mset != inf) mset += x;
-			else madd += x;
-			val += x;
-		}
-		else {
-			push(), l->add(L, R, x), r->add(L, R, x);
-			val = max(l->val, r->val);
-		}
-	}
-	void push() {
-		if (!l) {
-			int mid = lo + (hi - lo)/2;
-			l = new Node(lo, mid); r = new Node(mid, hi);
-		}
-		if (mset != inf)
-			l->set(lo,hi,mset), r->set(lo,hi,mset), mset = inf;
-		else if (madd)
-			l->add(lo,hi,madd), r->add(lo,hi,madd), madd = 0;
-	}
-};
+void push(int &l, int &r, int &i) {
+    if(!tag[i]) return;
+    if(l == r) return seg[i] += tag[i], tag[i] = 0, void();
+    seg[i] += tag[i] * (r - l + 1);
+    tag[i << 1] += tag[i], tag[i << 1 | 1] += tag[i];
+    tag[i] = 0;
+}
+
+void build(int l = 1, int r = maxn, int i = 1) {
+    if(l == r) return seg[i] = arr[l], void();
+    build(l, m, i << 1); build(m + 1, r, i << 1 | 1);
+    pull(i);
+}
+
+int qry(int ql, int qr, int l = 1, int r = maxn, int i = 1) {
+    push(l, r, i);
+    if(ql > r || qr < l) return 0;
+    if(ql <= l && qr >= r) return seg[i];
+    return qry(ql, qr, l, m, i << 1) + qry(ql, qr, m + 1, r, i << 1 | 1);
+}
+
+void upd(int ql, int qr, int k, int l = 1, int r = maxn, int i = 1) {
+    push(l, r, i);
+    if(ql > r || qr < l) return;
+    if(ql <= l && qr >= r) return tag[i] += k, push(l, r, i), void();
+    upd(ql, qr, k, l, m, i << 1), upd(ql, qr, k, m + 1, r, i << 1 | 1);
+    pull(i);
+}
+#undef m

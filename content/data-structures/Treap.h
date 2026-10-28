@@ -1,65 +1,69 @@
 /**
- * Author: someone on Codeforces
- * Date: 2017-03-14
- * Source: folklore
  * Description: A short self-balancing tree. It acts as a
  *  sequential container with log-time splits/joins, and
  *  is easy to augment with additional data.
  * Time: $O(\log N)$
- * Status: stress-tested
  */
-#pragma once
+mt19937 mt;
+struct treap {
+private:
+    struct node {
+        int pri, v, sum, tag, sz;
+        node *l, *r;
+        node(int x) : pri(mt()), v(x), sum(x), tag(0), sz(1) {l = r = 0;}
+        void pull() {
+            sum = v;
+            sz = 1;
+            for(auto &i : {l, r}) {
+                if(i) sum += i -> sum + i -> tag * i -> sz, sz += i -> sz;
+            }
+        }
+        void push() {
+            if(!tag) return;
+            v += tag;
+            sum += tag * sz;
+            for(auto &i : {l, r}) {
+                if(i) i -> tag += tag;
+            }
+            tag = 0;
+        }
+    }*root = 0;
+	
+    int size(node *a) {return a? a -> sz : 0;}
 
-struct Node {
-	Node *l = 0, *r = 0;
-	int val, y, c = 1;
-	Node(int val) : val(val), y(rand()) {}
-	void recalc();
+    node* merge(node *a, node *b) {
+        if(!a || !b) return a? a : b;
+        a -> push(), b -> push();
+        if(a -> pri > b -> pri) return a -> r = merge(a -> r, b), a -> pull(), a;
+        else return b -> l = merge(a, b -> l), b -> pull(), b;
+    }
+
+    void split(node *nd, node* &a, node* &b, int k) {
+        if(!nd) return a = b = 0, void();
+        nd -> push();
+        if(k <= size(nd -> l)) b = nd, split(nd -> l, a, b -> l, k);
+        else a = nd, split(nd -> r, a -> r, b, k - size(nd -> l) - 1);
+        nd -> pull();
+    }
+public:
+    int size() {return size(root);}
+
+    void insert(int x) {root = merge(root, new node(x));}
+
+    int qry(int l, int r) {
+        node *a, *b, *c;
+        split(root, b, c, r);
+        split(b, a, b, l - 1);
+        int ans = b -> sum;
+        root = merge(a, merge(b, c));
+        return ans;
+    }
+
+    void upd(int l, int r, int x) {
+        node *a, *b, *c;
+        split(root, b, c, r);
+        split(b, a, b, l - 1);
+        b -> tag += x;
+        root = merge(a, merge(b, c));
+    }
 };
-
-int cnt(Node* n) { return n ? n->c : 0; }
-void Node::recalc() { c = cnt(l) + cnt(r) + 1; }
-
-template<class F> void each(Node* n, F f) {
-	if (n) { each(n->l, f); f(n->val); each(n->r, f); }
-}
-
-pair<Node*, Node*> split(Node* n, int k) {
-	if (!n) return {};
-	if (cnt(n->l) >= k) { // "n->val >= k" for lower_bound(k)
-		auto [L,R] = split(n->l, k);
-		n->l = R;
-		n->recalc();
-		return {L, n};
-	} else {
-		auto [L,R] = split(n->r,k - cnt(n->l) - 1); // and just "k"
-		n->r = L;
-		n->recalc();
-		return {n, R};
-	}
-}
-
-Node* merge(Node* l, Node* r) {
-	if (!l) return r;
-	if (!r) return l;
-	if (l->y > r->y) {
-		l->r = merge(l->r, r);
-		return l->recalc(), l;
-	} else {
-		r->l = merge(l, r->l);
-		return r->recalc(), r;
-	}
-}
-
-Node* ins(Node* t, Node* n, int pos) {
-	auto [l,r] = split(t, pos);
-	return merge(merge(l, n), r);
-}
-
-// Example application: move the range [l, r) to index k
-void move(Node*& t, int l, int r, int k) {
-	Node *a, *b, *c;
-	tie(a,b) = split(t, l); tie(b,c) = split(b, r - l);
-	if (k <= l) t = merge(ins(a, b, k), c);
-	else t = merge(a, ins(c, b, k - r));
-}
