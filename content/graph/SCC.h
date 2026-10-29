@@ -1,41 +1,44 @@
-/**
- * Author: Lukas Polacek
- * Date: 2009-10-28
- * License: CC0
- * Source: Czech graph algorithms book, by Demel. (Tarjan's algorithm)
- * Description: Finds strongly connected components in a
- * directed graph. If vertices $u, v$ belong to the same component,
- * we can reach $u$ from $v$ and vice versa.
- * Usage: scc(graph, [\&](vi\& v) { ... }) visits all components
- * in reverse topological order. comp[i] holds the component
- * index of a node (a component only has edges to components with
- * lower index). ncomps will contain the number of components.
- * Time: O(E + V)
- * Status: Bruteforce-tested for N <= 5
- */
-#pragma once
-
-vi val, comp, z, cont;
-int Time, ncomps;
-template<class G, class F> int dfs(int j, G& g, F& f) {
-	int low = val[j] = ++Time, x; z.push_back(j);
-	for (auto e : g[j]) if (comp[e] < 0)
-		low = min(low, val[e] ?: dfs(e,g,f));
-
-	if (low == val[j]) {
-		do {
-			x = z.back(); z.pop_back();
-			comp[x] = ncomps;
-			cont.push_back(x);
-		} while (x != j);
-		f(cont); cont.clear();
-		ncomps++;
-	}
-	return val[j] = low;
-}
-template<class G, class F> void scc(G& g, F f) {
-	int n = sz(g);
-	val.assign(n, 0); comp.assign(n, -1);
-	Time = ncomps = 0;
-	rep(i,0,n) if (comp[i] < 0) dfs(i, g, f);
-}
+struct scc {
+    int n, t, scc_cnt;
+    vector<vector<int>> v;
+    vector<int> low, dfn, root;
+    vector<bool> inStack;
+    stack<int> st;
+    scc(int _n) : n(_n), t(1), scc_cnt(0) {
+        v.resize(n);
+        low.resize(n);
+        dfn.resize(n, -1);
+        root.resize(n);
+        inStack.resize(n);
+    }
+    void add_edge(int a, int b) {
+        v[a].push_back(b);
+    }
+    void dfs(int cur) {
+        low[cur] = dfn[cur] = t++;
+        st.push(cur);
+        inStack[cur] = true;
+        for(auto &x : v[cur]) {
+            if(dfn[x] == -1) {
+                dfs(x);
+                low[cur] = min(low[cur], low[x]);
+            }
+            else if(inStack[x]) low[cur] = min(low[cur], dfn[x]);
+        }
+        if(dfn[cur] == low[cur]) {
+            ++scc_cnt;
+            while(1) {
+                int x = st.top();
+                st.pop();
+                root[x] = scc_cnt;
+                inStack[x] = false;
+                if(x == cur) break;
+            }
+        }
+    }
+    void tarjan(int l, int r) {
+        for(int i = l; i <= r; ++i) {
+            if(dfn[i] == -1) dfs(i);
+        }
+    }
+};

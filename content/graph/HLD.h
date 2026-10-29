@@ -1,65 +1,115 @@
 /**
- * Author: Benjamin Qi, Oleksandr Kulkov, chilli
- * Date: 2020-01-12
- * License: CC0
- * Source: https://codeforces.com/blog/entry/53170, https://github.com/bqi343/USACO/blob/master/Implementations/content/graphs%20(12)/Trees%20(10)/HLD%20(10.3).h
- * Description: Decomposes a tree into vertex disjoint heavy paths and light
- * edges such that the path from any leaf to the root contains at most log(n)
- * light edges. Code does additive modifications and max queries, but can
- * support commutative segtree modifications/queries on paths and subtrees.
- * Takes as input the full adjacency list. VALS\_EDGES being true means that
- * values are stored in the edges, as opposed to the nodes. All values
- * initialized to the segtree default. Root must be 0.
- * Time: O((\log N)^2)
- * Status: stress-tested against old HLD
+ * Usage: Query or add value to a payh or subtree
  */
-#pragma once
+const int maxn = 1e5 + 3;
+vector<int> g[maxn];
+int sz[maxn], dep[maxn], hson[maxn], fa[maxn];
+int dfn[maxn], rnk[maxn], top[maxn];
+int arr[maxn], seg[maxn << 2], tag[maxn << 2];
+int t = 0;
+int n, q, r, p; // p:=mod
+#define m ((l + r) >> 1)
+#define il i << 1
+#define ir i << 1 | 1
 
-#include "../data-structures/LazySegmentTree.h"
+void dfs1(int cur, int pre, int d) {
+	fa[cur] = pre;
+	dep[cur] = d;
+	sz[cur] = 1;
+	hson[cur] = -1;
+	for(auto &x : g[cur]) {
+		if(x == pre) continue;
+		dfs1(x, cur, d + 1);
+		sz[cur] += sz[x];
+		if(hson[cur] == -1 || sz[x] > sz[hson[cur]]) hson[cur] = x;
+	}
+}
 
-template <bool VALS_EDGES> struct HLD {
-	int N, tim = 0;
-	vector<vi> adj;
-	vi par, siz, rt, pos;
-	Node *tree;
-	HLD(vector<vi> adj_)
-		: N(sz(adj_)), adj(adj_), par(N, -1), siz(N, 1),
-		  rt(N),pos(N),tree(new Node(0, N)){ dfsSz(0); dfsHld(0); }
-	void dfsSz(int v) {
-		for (int& u : adj[v]) {
-			adj[u].erase(find(all(adj[u]), v));
-			par[u] = v;
-			dfsSz(u);
-			siz[v] += siz[u];
-			if (siz[u] > siz[adj[v][0]]) swap(u, adj[v][0]);
-		}
+void dfs2(int cur, int head) {
+	dfn[cur] = ++t;
+	rnk[t] = cur;
+	top[cur] = head;
+	if(hson[cur] == -1) return;
+	dfs2(hson[cur], head);
+	for(auto &x : g[cur]) {
+		if(x != hson[cur] && x != fa[cur]) dfs2(x, x);
 	}
-	void dfsHld(int v) {
-		pos[v] = tim++;
-		for (int u : adj[v]) {
-			rt[u] = (u == adj[v][0] ? rt[v] : u);
-			dfsHld(u);
-		}
+}
+
+void pull(int &i) {seg[i] = (seg[il] + seg[ir]) % p;}
+
+void push(int l, int r, int i) {
+	if(tag[i] == 0) return;
+	if(l == r) {
+		(seg[i] += tag[i]) %= p;
+		tag[i] = 0;
+		return;
 	}
-	template <class B> void process(int u, int v, B op) {
-		for (;; v = par[rt[v]]) {
-			if (pos[u] > pos[v]) swap(u, v);
-			if (rt[u] == rt[v]) break;
-			op(pos[rt[v]], pos[v] + 1);
-		}
-		op(pos[u] + VALS_EDGES, pos[v] + 1);
+	(seg[i] += (1LL * tag[i] * (r - l + 1))) %= p;
+	(tag[il] += tag[i]) %= p, (tag[ir] += tag[i]) %= p;
+	tag[i] = 0;
+}
+
+void build(int l = 1, int r = maxn, int i = 1) {
+	if(l == r) return seg[i] = arr[rnk[l]], void();
+	build(l, m, il), build(m + 1, r, ir);
+	pull(i);
+}
+
+int qry(int ql, int qr, int l = 1, int r = maxn, int i = 1) {
+	push(l, r, i);
+	if(ql > r || qr < l) return 0;
+	if(ql <= l && qr >= r) return seg[i];
+	return (qry(ql, qr, l, m, il) + qry(ql, qr, m + 1, r, ir)) % p;
+}
+
+int qryPath(int u, int v) {
+	int ans = 0;
+	while(top[u] != top[v]) {
+		if(dep[top[u]] < dep[top[v]]) swap(u, v);
+		(ans += qry(dfn[top[u]], dfn[u])) %= p;
+		u = fa[top[u]];
 	}
-	void modifyPath(int u, int v, int val) {
-		process(u, v, [&](int l, int r) { tree->add(l, r, val); });
+	if(dep[u] > dep[v]) swap(u, v);
+	(ans += qry(dfn[u], dfn[v])) %= p;
+	return ans;
+}
+
+int qrySubtree(int u) {
+	return qry(dfn[u], dfn[u] + sz[u] - 1);
+}
+
+void upd(int ql, int qr, int val, int l = 1, int r = maxn, int i = 1) {
+	push(l, r, i);
+	if(ql > r || qr < l) return;
+	if(ql <= l && qr >= r) return (tag[i] += val) %= p, push(l, r, i), void();
+	upd(ql, qr, val, l, m, il), upd(ql, qr, val, m + 1, r, ir);
+	pull(i);
+}
+
+void updPath(int u, int v, int k) {
+	while(top[u] != top[v]) {
+		if(dep[top[u]] < dep[top[v]]) swap(u, v);
+		upd(dfn[top[u]], dfn[u], k);
+		u = fa[top[u]];
 	}
-	int queryPath(int u, int v) { // Modify depending on problem
-		int res = -1e9;
-		process(u, v, [&](int l, int r) {
-				res = max(res, tree->query(l, r));
-		});
-		return res;
-	}
-	int querySubtree(int v) { // modifySubtree is similar
-		return tree->query(pos[v] + VALS_EDGES, pos[v] + siz[v]);
-	}
-};
+	if(dep[u] > dep[v]) swap(u, v);
+	upd(dfn[u], dfn[v], k);
+}
+
+void updSubtree(int u, int k) {
+	upd(dfn[u], dfn[u] + sz[u] - 1, k);
+}
+
+/*
+cin >> n >> q >> r >> p;
+rep(i, 1, n + 1) cin >> arr[i];
+rep(i, 0, n - 1) {
+	int a, b;
+	cin >> a >> b;
+	g[a].pb(b), g[b].pb(a);
+}
+dfs1(r, -1, 0);
+dfs2(r, r);
+build();
+*/

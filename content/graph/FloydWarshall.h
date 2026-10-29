@@ -10,17 +10,22 @@
  * Time: O(N^3)
  * Status: slightly tested
  */
-#pragma once
-
-const ll inf = 1LL << 62;
-void floydWarshall(vector<vector<ll>>& m) {
-	int n = sz(m);
-	rep(i,0,n) m[i][i] = min(m[i][i], 0LL);
-	rep(k,0,n) rep(i,0,n) rep(j,0,n)
-		if (m[i][k] != inf && m[k][j] != inf) {
-			auto newDist = max(m[i][k] + m[k][j], -inf);
-			m[i][j] = min(m[i][j], newDist);
-		}
-	rep(k,0,n) if (m[k][k] < 0) rep(i,0,n) rep(j,0,n)
-		if (m[i][k] != inf && m[k][j] != inf) m[i][j] = -inf;
+void floyd_warshall(vector<int> &v) {
+    int n = v.size();
+    for(int k = 0; k < n; k++) {
+        for(int i = 0; i < n; i++) {
+            for(int j = 0; j < n; j++) v[i][j] = min(v[i][j], v[i][k] + v[k][j]);
+        }
+    }
 }
+
+/*
+int n, m, u, v, a, b, c;
+cin >> n >> m >> x >> y; (0-based)
+vector<vector<int>> v(n, vector<int>(n, (int)1e9));
+for(int i = 0; i < n; i++) v[i][i] = 0;
+while(m--) cin >> a >> b >> c, v[a][b] = c;
+floyd_warshall(v);
+cout << v[x][y];
+*/
+

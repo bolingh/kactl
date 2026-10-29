@@ -1,38 +1,42 @@
-/**
- * Author: Johan Sannemo
- * Date: 2015-02-06
- * License: CC0
- * Source: Folklore
- * Description: Calculate power of two jumps in a tree,
- * to support fast upward jumps and LCAs.
- * Assumes the root node points to itself.
- * Time: construction $O(N \log N)$, queries $O(\log N)$
- * Status: Tested at Petrozavodsk, also stress-tested via LCA.cpp
- */
-#pragma once
+int n, q, t = 0;
+const int root = 1;
+vector<int> anc, tin, tout;
+vector<vector<int>> v, child;
 
-vector<vi> treeJump(vi& P){
-	int on = 1, d = 1;
-	while(on < sz(P)) on *= 2, d++;
-	vector<vi> jmp(d, P);
-	rep(i,1,d) rep(j,0,sz(P))
-		jmp[i][j] = jmp[i-1][jmp[i-1][j]];
-	return jmp;
+void init() {
+    anc.resize(n + 1);
+    tin.resize(n + 1), tout.resize(n + 1);
+    v.resize(n + 1, vector<int>(30, -1));
+    child.resize(n + 1);
 }
 
-int jmp(vector<vi>& tbl, int nod, int steps){
-	rep(i,0,sz(tbl))
-		if(steps&(1<<i)) nod = tbl[i][nod];
-	return nod;
+void dfs(int cur) {
+    tin[cur] = t++;
+    for(auto &x : child[cur]) dfs(x);
+    tout[cur] = t++;
 }
 
-int lca(vector<vi>& tbl, vi& depth, int a, int b) {
-	if (depth[a] < depth[b]) swap(a, b);
-	a = jmp(tbl, a, depth[a] - depth[b]);
-	if (a == b) return a;
-	for (int i = sz(tbl); i--;) {
-		int c = tbl[i][a], d = tbl[i][b];
-		if (c != d) a = c, b = d;
-	}
-	return tbl[0][a];
+void build() {
+    for(int i = 2; i <= n; ++i) v[i][0] = anc[i];
+    for(int i = 1; i < 30; ++i) {
+        for(int j = 1; j <= n; ++j) {
+            if(v[j][i - 1] != -1) v[j][i] = v[v[j][i - 1]][i - 1];
+        }
+    }
+    dfs(root);
+}
+
+bool isanc(int &x, int &y) {
+    return tin[x] <= tin[y] && tout[x] >= tout[y];
+}
+
+int lca(int &x, int &y) {
+    if(isanc(x, y)) return x;
+    if(isanc(y, x)) return y;
+    int ans = x;
+    for(int i = 29; ~i; --i) {
+        if(v[ans][i] == -1) continue;
+        if(!isanc(v[ans][i], y)) ans = v[ans][i];
+    }
+    return anc[ans];
 }
