@@ -1,7 +1,7 @@
-/*
+/**
  * Description: 1-based, [l, r] range sum. p.s. this template sucks, I forgot how yo use.
  * Time: O(\log n)
-*/
+ */
 const int maxn = 1e8 + 1;
 #define m ((l + r) >> 1)
 
