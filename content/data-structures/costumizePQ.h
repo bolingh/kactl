@@ -4,7 +4,7 @@ struct Task {
     int execution_time;
 };
 
-// rule：priority bigger, then execution_time smaller
+// rule: priority bigger, then execution_time smaller
 struct CompareTask {
     bool operator()(const Task& a, const Task& b) const {
         if (a.priority != b.priority) {
@@ -26,5 +26,5 @@ int main() {
         pq.pop();
         cout << "Task ID: " << t.id << "\n";
     }
-    // 輸出順序: Task 2 -> Task 3 -> Task 1
+    // output result: Task 2 -> Task 3 -> Task 1
 }
